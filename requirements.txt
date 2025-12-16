@@ -1,0 +1,8 @@
+psutil==7.0.0
+nncore==0.4.5
+accelerate==1.6.0
+transformers==4.57.1
+huggingface-hub==0.34.0
+torch==2.6.0
+torchvision==0.21.0
+qwen-vl-utils[decord]==0.0.14

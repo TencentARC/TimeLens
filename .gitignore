@@ -1,0 +1,14 @@
+# Byte-compiled / optimized / DLL files
+__pycache__
+*.egg-info
+*.py[cod]
+*$py.class
+
+# Temporary data
+/data
+.DS_Store
+._*
+/logs
+/output
+/tensorboard
+/wandb
