@@ -10,10 +10,16 @@
     &nbsp&nbsp📑 <a href="https://arxiv.org/abs/2512.14698"><b>Paper</b></a>&nbsp&nbsp | &nbsp&nbsp🏠 <a href="https://timelens-arc-lab.github.io/"><b>Project Page</b></a>&nbsp&nbsp | 🤗 <a href="https://huggingface.co/collections/TencentARC/timelens"><b>Model & Data</b></a>&nbsp&nbsp | 🏆 <a href="https://timelens-arc-lab.github.io/#leaderboard"><b>TimeLens-Bench Leaderboard</b></a>&nbsp&nbsp
 </p>
 
+## 🔎 Overview
+TimeLens rethinks video temporal grounding (VTG) with MLLMs along two axes:
+- **Data Quality**. We expose critical quality issues in existing VTG benchmarks and propose quality-assured datasets for both training and evaluation.
+- **Algorithmic Design**. Building upon reliable data, we explore effective timestamp encoding strategies and training recipes, achieving state-of-the-art performance among open-source models.
+
 ## 🔥 Highlights
+In this repository, we release:
 - [TimeLens-Bench](https://huggingface.co/datasets/TencentARC/TimeLens-Bench): a comprehensive, high-quality evaluation benchmark for video temporal grounding, consisting of Charades-TimeLens, ActivityNet-TimeLens and QVHighlights-TimeLens.
 - [TimeLens-100K](https://huggingface.co/datasets/TencentARC/TimeLens-100K): a large-scale, diverse, high-quality training dataset for video temporal grounding, annotated with Gemini-2.5-Pro.
-- [TimeLens Models](#-timelens-models): State-of-the-art open-source models for video temporal grounding.
+- [TimeLens Models](#-using-timelens-models): State-of-the-art open-source models for video temporal grounding.
 
 ## 📦 Installation
 
