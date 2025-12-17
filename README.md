@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-    &nbsp&nbsp📑 <a href="TODO"><b>Paper</b></a>&nbsp&nbsp | &nbsp&nbsp🏠 <a href="https://timelens-arc-lab.github.io/"><b>Project Page</b></a>&nbsp&nbsp | 🤗 <a href="https://huggingface.co/collections/TencentARC/timelens"><b>Model & Data</b></a>&nbsp&nbsp | 🏆 <a href="https://timelens-arc-lab.github.io/#leaderboard"><b>TimeLens-Bench Leaderboard</b></a>&nbsp&nbsp
+    &nbsp&nbsp📑 <a href="https://arxiv.org/abs/2512.14698"><b>Paper</b></a>&nbsp&nbsp | &nbsp&nbsp🏠 <a href="https://timelens-arc-lab.github.io/"><b>Project Page</b></a>&nbsp&nbsp | 🤗 <a href="https://huggingface.co/collections/TencentARC/timelens"><b>Model & Data</b></a>&nbsp&nbsp | 🏆 <a href="https://timelens-arc-lab.github.io/#leaderboard"><b>TimeLens-Bench Leaderboard</b></a>&nbsp&nbsp
 </p>
 
 ## 🔥 Highlights
