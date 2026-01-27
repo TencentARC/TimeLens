@@ -1,2 +1,1 @@
-from timelens.model.processing_timelens_qwen2 import TimeLensProcessor
 from timelens.dataset.timelens_data import DATASET_DICT
