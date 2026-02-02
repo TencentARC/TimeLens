@@ -38,6 +38,17 @@ class GroundingDataset(Dataset):
         video_path = anno["video_path"]
         query = anno["query"]
 
+        if "qwen3" in self.args.model_path.lower() or "timelens-8b" in self.args.model_path.lower():
+            # for TimeLens-8B(based on Qwen3-VL) and Qwen3-VL models
+            downsample_rate = 32
+        elif "qwen2" in self.args.model_path.lower() or "timelens-7b" in self.args.model_path.lower():
+            # for TimeLens-7B (based on Qwen2.5-VL) and Qwen2.5-VL models
+            downsample_rate = 28
+        else:
+            raise NotImplementedError(
+                f"Model {self.args.model_path} not supported yet."
+            )
+
         messages = [
             {
                 "role": "user",
@@ -45,8 +56,8 @@ class GroundingDataset(Dataset):
                     {
                         "type": "video",
                         "video": video_path,
-                        "min_pixels": self.args.min_tokens * 28 * 28,
-                        "total_pixels": self.args.total_tokens * 28 * 28,
+                        "min_pixels": self.args.min_tokens * downsample_rate * downsample_rate,
+                        "total_pixels": self.args.total_tokens * downsample_rate * downsample_rate,
                         "fps": self.args.fps,
                     },
                     {"type": "text", "text": self.prompt.format(query)},
