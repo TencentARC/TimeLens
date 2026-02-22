@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">TimeLens: Rethinking Video Temporal Grounding with Multimodal LLMs</h1>
+  <h1 align="center">TimeLens: Rethinking Video Temporal Grounding with Multimodal LLMs <br/>🏆 CVPR 2026</h1>
 </p>
 
 <p align="center">
@@ -9,6 +9,9 @@
 <p align="center">
     &nbsp&nbsp📑 <a href="https://arxiv.org/abs/2512.14698"><b>Paper</b></a>&nbsp&nbsp | &nbsp&nbsp🏠 <a href="https://timelens-arc-lab.github.io/"><b>Project Page</b></a>&nbsp&nbsp | 🤗 <a href="https://huggingface.co/collections/TencentARC/timelens"><b>Model & Data</b></a>&nbsp&nbsp | 🏆 <a href="https://timelens-arc-lab.github.io/#leaderboard"><b>TimeLens-Bench Leaderboard</b></a>&nbsp&nbsp
 </p>
+
+## 📰 News
+- **2026.02.22**: 🎉 TimeLens has been accepted to **CVPR 2026**.
 
 ## 🔎 Overview
 TimeLens rethinks video temporal grounding (VTG) with MLLMs along two axes:
