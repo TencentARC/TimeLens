@@ -11,6 +11,7 @@
 </p>
 
 ## 📰 News
+- **2026.02.26**: 🚀 We now support training **TimeLens-8B** based on **Qwen3-8B-VL**.
 - **2026.02.22**: 🎉 TimeLens has been accepted to **CVPR 2026**.
 
 ## 🔎 Overview
@@ -40,7 +41,14 @@ Create a Conda environment and install the required packages
 ```bash
 conda create -n timelens python=3.11 -y
 conda activate timelens
+
+# install dependencies for inference
 pip install -r requirements.txt -f https://download.pytorch.org/whl/cu124 # We use CUDA Version 12.4
+
+# Optional: install extra dependencies for training
+pip install -r requirements_train.txt
+
+# Install flash-attn (required for BOTH training and inference!)
 pip install flash-attn==2.7.4.post1 --no-build-isolation --no-cache-dir
 ```
 
@@ -313,7 +321,81 @@ We provide an example script [timelens_data.py](./timelens/dataset/timelens_data
 
 ### Use Our Training Code
 
-Our training code will be released soon! Stay tuned!
+TimeLens-8B training is released as a 3-stage pipeline (SFT -> filter data -> GRPO):
+
+1. **SFT on TimeLens-100K (30K sampled)**
+   We provide a prebuilt SFT checkpoint:
+   `https://huggingface.co/JungleGym/TimeLens-Qwen3-VL-8B-SFT`
+   You can download it directly:
+
+```bash
+hf download JungleGym/TimeLens-Qwen3-VL-8B-SFT \
+  --repo-type model \
+  --local-dir output/TimeLens-8B/sft/prebuilt
+```
+
+   You can also reproduce SFT by yourself:
+
+```bash
+bash train_scripts/run_sft_qwen3_8b.sh \
+  --model_path "/path/to/Qwen3-VL-8B-Instruct"
+```
+
+2. **Run filtering inference on full TimeLens-100K and compute IoU**
+   We provide precomputed filtering inference output:
+   `https://huggingface.co/datasets/JungleGym/TimeLens-Qwen3-VL-8B-filter-data/blob/main/FPS-2-maxframes-448_TOTALtokens-14336_MINtokens-64---20251209_223300/gemini_refined_data.jsonl`
+   You can download it directly:
+
+```bash
+hf download JungleGym/TimeLens-Qwen3-VL-8B-filter-data \
+  FPS-2-maxframes-448_TOTALtokens-14336_MINtokens-64---20251209_223300/gemini_refined_data.jsonl \
+  --repo-type dataset \
+  --local-dir output/TimeLens-8B/filter-data/prebuilt
+```
+
+   You can also generate it by yourself:
+
+```bash
+bash scripts/filter_data/filter_data_qwen3_vl.sh \
+  --model_path "output/TimeLens-8B/sft/<your_sft_run_dir>" \
+  --dataset gemini_refined_data
+```
+
+This stage writes inference output to:
+`output/TimeLens-8B/filter-data/.../gemini_refined_data.jsonl`
+
+3. **GRPO training from SFT checkpoint (filtering jsonl as input)**
+   If you use prebuilt files downloaded above, use:
+   `--model_path output/TimeLens-8B/sft/prebuilt` and
+   `--raw_anno_path output/TimeLens-8B/filter-data/prebuilt/FPS-2-maxframes-448_TOTALtokens-14336_MINtokens-64---20251209_223300/gemini_refined_data.jsonl`
+
+   Training + evaluation:
+
+```bash
+bash train_scripts/run_grpo_and_eval_qwen3_8b.sh \
+  --model_path "output/TimeLens-8B/sft/<your_sft_run_dir>" \
+  --raw_anno_path "output/TimeLens-8B/filter-data/<your_filter_run_dir>/gemini_refined_data.jsonl"
+```
+
+Training only:
+
+```bash
+bash train_scripts/run_grpo_qwen3_8b.sh \
+  --model_path "output/TimeLens-8B/sft/<your_sft_run_dir>" \
+  --raw_anno_path "output/TimeLens-8B/filter-data/<your_filter_run_dir>/gemini_refined_data.jsonl"
+```
+
+Final GRPO checkpoints are saved under:
+`output/TimeLens-8B/grpo/...`
+
+#### Evaluate Trained Checkpoints
+
+Use the existing TimeLens-Bench evaluation code directly:
+
+```bash
+model_path="output/TimeLens-8B/grpo/<your_grpo_run_dir>" \
+bash scripts/eval_timelens_bench.sh
+```
 
 ## 📝 Citation
 If you find our paper, code, model, and data helpful for your research and applications, please consider giving a star ⭐ and citation 📝 :)

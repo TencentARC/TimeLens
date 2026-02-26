@@ -25,16 +25,14 @@ class ActivitynetTimeLensDataset:
         annos = []
         for vid, raw_anno in raw_annos.items():
             video_path = os.path.join(cls.VIDEO_ROOT, vid + ".mp4")
-            if not os.path.exists(video_path):
-                print(f"Warning: Video path does not exist: {video_path}")
-
-            duration = raw_anno["duration"]
+            # if not os.path.exists(video_path):
+            # raise FileNotFoundError(f"Video path does not exist: {video_path}")
             for span, query in zip(raw_anno["spans"], raw_anno["queries"]):
                 anno = dict(
                     source=cls.DATASET_SOURCE,
                     data_type="grounding",
                     video_path=video_path,
-                    duration=duration,
+                    duration=raw_anno["duration"],
                     query=parse_query(query),
                     span=[span],
                 )
@@ -72,8 +70,8 @@ class TimeLens100KDataset:
         annos = []
         for raw_anno in raw_anno:
             video_path = os.path.join(self.VIDEO_ROOT, raw_anno["video_path"])
-            if not os.path.exists(video_path):
-                print(f"Warning: Video path does not exist: {video_path}")
+            # if not os.path.exists(video_path):
+            # raise FileNotFoundError(f"Video path does not exist: {video_path}")
             for event in raw_anno["events"]:
                 query = parse_query(event["query"])
                 span = event["span"]
