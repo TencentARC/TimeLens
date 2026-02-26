@@ -60,14 +60,18 @@ def set_requires_grad(parameters, requires_grad):
 
 
 def configure_vision_tower(model, training_args, compute_dtype, device):
-    vision_tower = model.visual
+    vision_tower = getattr(model, "visual", None)
+    if vision_tower is None:
+        return
     vision_tower.to(dtype=compute_dtype, device=device)
 
     vision_model_params = model.visual.parameters()
     set_requires_grad(vision_model_params, not training_args.freeze_vision_tower)
 
-    merger_params = model.visual.merger.parameters()
-    set_requires_grad(merger_params, not training_args.freeze_merger)
+    merger = getattr(model.visual, "merger", None)
+    if merger is not None:
+        merger_params = merger.parameters()
+        set_requires_grad(merger_params, not training_args.freeze_merger)
 
 
 def configure_llm(model, training_args):

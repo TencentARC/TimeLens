@@ -321,6 +321,7 @@ We provide an example script [timelens_data.py](./timelens/dataset/timelens_data
 
 ### Use Our Training Code
 
+#### TimeLens-8B Training (based on Qwen3-VL)
 TimeLens-8B training is released as a 3-stage pipeline (SFT -> filter data -> GRPO):
 
 1. **SFT on TimeLens-100K (30K sampled)**
@@ -396,6 +397,42 @@ Use the existing TimeLens-Bench evaluation code directly:
 model_path="output/TimeLens-8B/grpo/<your_grpo_run_dir>" \
 bash scripts/eval_timelens_bench.sh
 ```
+
+#### TimeLens-7B training (based on Qwen2.5-VL)
+
+TimeLens-7B is trained from **Qwen2.5-VL-7B-Instruct** with only two stages: **filter data** then **GRPO** (no SFT). Hyperparameters match the TimeLens-7B evaluation setup (min_tokens=64, total_tokens=14336, fps=2, interleave timestamp).
+
+1. **Filter data** (use Qwen2.5-VL-7B or TimeLens-7B for same processor config):
+
+```bash
+bash scripts/filter_data/filter_data_qwen25_vl_7b.sh \
+  --model_path "/path/to/Qwen2.5-VL-7B-Instruct"
+```
+
+Output: `output/TimeLens-7B/filter-data/.../gemini_refined_data.jsonl`
+
+2. **GRPO training** from base model (filtering json as input):
+
+   Training + evaluation:
+
+```bash
+bash train_scripts/run_grpo_and_eval_qwen25_vl_7b.sh \
+  --model_path "/path/to/Qwen2.5-VL-7B-Instruct" \
+  --raw_anno_path "output/TimeLens-7B/filter-data/<your_filter_run_dir>/gemini_refined_data.jsonl"
+```
+
+Training only:
+
+```bash
+bash train_scripts/run_grpo_qwen25_vl_7b.sh \
+  --model_path "/path/to/Qwen2.5-VL-7B-Instruct" \
+  --raw_anno_path "output/TimeLens-7B/filter-data/<your_filter_run_dir>/gemini_refined_data.jsonl"
+```
+
+
+
+Final GRPO checkpoints are saved under:
+`output/TimeLens-7B/rlvr/...`
 
 ## 📝 Citation
 If you find our paper, code, model, and data helpful for your research and applications, please consider giving a star ⭐ and citation 📝 :)

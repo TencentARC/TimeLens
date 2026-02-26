@@ -15,6 +15,12 @@ GROUNDING_PROMPT = (
     "The format should be: 'The event happens in <start time> - <end time> seconds'."
 )
 
+# prompt for TimeLens-7B (Qwen2.5-VL) with interleaved textual timestamps
+GROUNDING_PROMPT_TEXT_TIMESTAMP = (
+    "You are given a video with multiple frames. "
+    "The numbers before each video frame indicate its sampling timestamp (in seconds). "
+) + GROUNDING_PROMPT
+
 AUDIO_QUERY_KEYWORDS = {
     "hear",
     "heard",
@@ -51,12 +57,21 @@ def _format_response(spans):
     )
 
 
-def _build_video_content(anno, data_args, include_video_range=False):
+def _is_7b_model(model_path: str) -> bool:
+    if not model_path:
+        return False
+    m = model_path.lower()
+    return "qwen2.5-vl" in m or "qwen2.5_vl" in m or "timelens-7b" in m
+
+
+def _build_video_content(anno, data_args, include_video_range=False, model_path=None):
+    # Qwen2.5-VL / TimeLens-7B uses 28x28; Qwen3-VL / TimeLens-8B uses 32x32
+    scale = 28 * 28 if _is_7b_model(model_path or "") else 32 * 32
     content = {
         "type": "video",
         "video": anno["video_path"],
-        "min_pixels": int(data_args.min_tokens * 32 * 32),
-        "total_pixels": int(data_args.total_tokens * 32 * 32),
+        "min_pixels": int(data_args.min_tokens * scale),
+        "total_pixels": int(data_args.total_tokens * scale),
         "fps": float(data_args.fps),
     }
     if include_video_range:
@@ -110,6 +125,7 @@ class GroundingDataset(Dataset):
         self.data_args = data_args
         self.training_args = training_args
         self.training_mode = training_mode
+        self._is_7b = _is_7b_model(model_args.model_name_or_path or "")
 
         if dataset_name in ("gemini_refined_data", "timelens-100k"):
             base_annos = TimeLens100KDataset.load_annos(split="train")
@@ -261,43 +277,60 @@ class GroundingDataset(Dataset):
     def _getitem_sft(self, idx):
         anno = copy.deepcopy(self.annos[idx])
         spans = _normalize_spans(anno["span"])
+        prompt = GROUNDING_PROMPT_TEXT_TIMESTAMP if self._is_7b else GROUNDING_PROMPT
 
         messages = [
             {
                 "role": "user",
                 "content": [
-                    _build_video_content(anno, self.data_args),
-                    {"type": "text", "text": GROUNDING_PROMPT.format(anno["query"])},
+                    _build_video_content(
+                        anno, self.data_args, model_path=self.model_args.model_name_or_path
+                    ),
+                    {"type": "text", "text": prompt.format(anno["query"])},
                 ],
             }
         ]
 
-        images, videos, video_kwargs = process_vision_info(
-            messages,
-            image_patch_size=16,
-            return_video_kwargs=True,
-            return_video_metadata=True,
-        )
-        if videos is not None:
-            videos, video_metadatas = zip(*videos)
-            videos, video_metadatas = list(videos), list(video_metadatas)
-        else:
+        if self._is_7b:
+            images, videos = process_vision_info(messages, return_video_metadata=True)
             video_metadatas = None
+            video_kwargs = {}
+        else:
+            images, videos, video_kwargs = process_vision_info(
+                messages,
+                image_patch_size=16,
+                return_video_kwargs=True,
+                return_video_metadata=True,
+            )
+            if videos is not None:
+                videos, video_metadatas = zip(*videos)
+                videos, video_metadatas = list(videos), list(video_metadatas)
+            else:
+                video_metadatas = None
 
         response = _format_response(spans)
         messages.append({"role": "assistant", "content": response})
 
         text = self.processor.apply_chat_template(messages, tokenize=False)
         text = [text.strip()]
-        inputs = self.processor(
-            text=text,
-            images=images,
-            videos=videos,
-            video_metadata=video_metadatas,
-            return_tensors="pt",
-            do_resize=False,
-            **video_kwargs,
-        )
+        if self._is_7b:
+            inputs = self.processor(
+                text=text,
+                images=images,
+                videos=videos,
+                return_tensors="pt",
+                do_resize=False,
+            )
+        else:
+            inputs = self.processor(
+                text=text,
+                images=images,
+                videos=videos,
+                video_metadata=video_metadatas,
+                return_tensors="pt",
+                do_resize=False,
+                **video_kwargs,
+            )
         inputs["input_ids"] = inputs["input_ids"][0]
         inputs["labels"] = preprocess(
             inputs["input_ids"],
@@ -309,15 +342,19 @@ class GroundingDataset(Dataset):
 
     def _getitem_grpo(self, idx):
         anno = copy.deepcopy(self.annos[idx])
+        prompt = GROUNDING_PROMPT_TEXT_TIMESTAMP if self._is_7b else GROUNDING_PROMPT
 
         messages = [
             {
                 "role": "user",
                 "content": [
                     _build_video_content(
-                        anno, self.data_args, include_video_range=True
+                        anno,
+                        self.data_args,
+                        include_video_range=True,
+                        model_path=self.model_args.model_name_or_path,
                     ),
-                    {"type": "text", "text": GROUNDING_PROMPT.format(anno["query"])},
+                    {"type": "text", "text": prompt.format(anno["query"])},
                 ],
             }
         ]
@@ -329,27 +366,41 @@ class GroundingDataset(Dataset):
         )
         text = [text]
 
-        images, videos, video_kwargs = process_vision_info(
-            messages,
-            image_patch_size=16,
-            return_video_kwargs=True,
-            return_video_metadata=True,
-        )
-        if videos is not None:
-            videos, video_metadatas = zip(*videos)
-            videos, video_metadatas = list(videos), list(video_metadatas)
-        else:
+        if self._is_7b:
+            images, videos = process_vision_info(messages, return_video_metadata=True)
             video_metadatas = None
+            video_kwargs = {}
+        else:
+            images, videos, video_kwargs = process_vision_info(
+                messages,
+                image_patch_size=16,
+                return_video_kwargs=True,
+                return_video_metadata=True,
+            )
+            if videos is not None:
+                videos, video_metadatas = zip(*videos)
+                videos, video_metadatas = list(videos), list(video_metadatas)
+            else:
+                video_metadatas = None
 
-        inputs = self.processor(
-            text=text,
-            images=images,
-            videos=videos,
-            video_metadata=video_metadatas,
-            return_tensors="pt",
-            do_resize=False,
-            **video_kwargs,
-        )
+        if self._is_7b:
+            inputs = self.processor(
+                text=text,
+                images=images,
+                videos=videos,
+                return_tensors="pt",
+                do_resize=False,
+            )
+        else:
+            inputs = self.processor(
+                text=text,
+                images=images,
+                videos=videos,
+                video_metadata=video_metadatas,
+                return_tensors="pt",
+                do_resize=False,
+                **video_kwargs,
+            )
         inputs["input_ids"] = inputs["input_ids"][0]
         inputs["prompt"] = messages
         inputs["prompt_text"] = text[0]

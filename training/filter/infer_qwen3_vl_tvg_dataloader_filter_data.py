@@ -8,7 +8,6 @@ import nncore
 import torch
 from nncore.engine import set_random_seed
 from torch.utils.data import DataLoader
-from transformers import AutoModelForImageTextToText, AutoProcessor
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 if str(WORKSPACE_ROOT) not in sys.path:
@@ -16,6 +15,7 @@ if str(WORKSPACE_ROOT) not in sys.path:
 
 from timelens.dataset.timelens_data import TimeLens100KDataset
 from training.data import GroundingDatasetInference, collate_fn
+from training.model_loader import get_model_class, get_processor_class
 from training.utils.parser import extract_answer, extract_time, iou
 
 AUDIO_QUERY_KEYWORDS = {
@@ -95,13 +95,15 @@ if __name__ == "__main__":
     if args.device != "auto":
         raise ValueError('Only device="auto" is supported.')
 
-    model = AutoModelForImageTextToText.from_pretrained(
+    model_cls = get_model_class(args.model_path)
+    processor_cls = get_processor_class(args.model_path)
+    model = model_cls.from_pretrained(
         args.model_path,
-        dtype=torch.bfloat16,
+        torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2",
         device_map=args.device,
     ).eval()
-    processor = AutoProcessor.from_pretrained(
+    processor = processor_cls.from_pretrained(
         args.model_path,
         padding_side="left",
         do_resize=False,
