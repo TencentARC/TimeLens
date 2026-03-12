@@ -11,6 +11,7 @@
 </p>
 
 ## 📰 News
+- **2026.02.26**: 🚀 Training for **TimeLens-7B** based on **Qwen2.5-VL-7B** is available on the [**train**](https://github.com/TencentARC/TimeLens/tree/train) branch.
 - **2026.02.26**: 🚀 We now support training **TimeLens-8B** based on **Qwen3-8B-VL**.
 - **2026.02.22**: 🎉 TimeLens has been accepted to **CVPR 2026**.
 
