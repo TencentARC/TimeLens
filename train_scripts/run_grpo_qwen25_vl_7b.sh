@@ -7,6 +7,7 @@ export PYTHONPATH="./:${PYTHONPATH:-}"
 export CUDA_LAUNCH_BLOCKING=1
 
 model_path=""
+processor_path="TencentARC/TimeLens-7B"
 raw_anno_path=""
 datasets="filtered_hybrid"
 model_id="qwen2.5-vl-7b"
@@ -28,6 +29,7 @@ report_to="none"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --model_path) model_path="$2"; shift 2 ;;
+    --processor_path) processor_path="$2"; shift 2 ;;
     --raw_anno_path) raw_anno_path="$2"; shift 2 ;;
     --datasets) datasets="$2"; shift 2 ;;
     --min_tokens) min_tokens="$2"; shift 2 ;;
@@ -79,6 +81,7 @@ deepspeed training/train/train_grpo_timelens.py \
   --gradient_checkpointing True \
   --deepspeed "${deepspeed_config}" \
   --model_name_or_path "${model_path}" \
+  --processor_path "${processor_path}" \
   --model_id "${model_id}" \
   --datasets "${datasets}" \
   --raw_anno_path "${raw_anno_path}" \
@@ -98,7 +101,6 @@ deepspeed training/train/train_grpo_timelens.py \
   --freeze_vision_tower True \
   --freeze_llm False \
   --freeze_merger False \
-  --lr_scheduler_type constant \
   --learning_rate 1e-6 \
   --num_train_epochs "${epochs}" \
   --per_device_train_batch_size "${batch_per_device}" \
@@ -115,10 +117,9 @@ deepspeed training/train/train_grpo_timelens.py \
   --num_generations 8 \
   --steps_per_generation 1 \
   --temperature 1.0 \
-  --scale_rewards False \
+  --scale_rewards True \
   --seed "${seed}" \
   --report_to "${report_to}" \
   --run_name "${model_id}-grpo/${run_name}" \
   --logging_dir wandb \
-  --save_only_model True \
-  --max_steps 100
+  --save_only_model True

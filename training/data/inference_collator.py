@@ -5,7 +5,6 @@ from torch.utils.data import Dataset
 
 from timelens.dataset.timelens_data import parse_query
 
-
 GROUNDING_PROMPT = (
     "Please find the visual event described by the sentence '{}', determining its starting and ending times. "
     "The format should be: 'The event happens in <start time> - <end time> seconds'."
@@ -18,11 +17,15 @@ GROUNDING_PROMPT_TEXT_TIMESTAMP = (
 ) + GROUNDING_PROMPT
 
 
-def _is_7b_model(model_name: str) -> bool:
+def _is_timelens_7b_model(model_name: str) -> bool:
+    return bool(model_name) and "timelens-7b" in model_name.lower()
+
+
+def _is_qwen2_model(model_name: str) -> bool:
     if not model_name:
         return False
     m = model_name.lower()
-    return "qwen2.5-vl" in m or "qwen2.5_vl" in m or "timelens-7b" in m
+    return "qwen2" in m or "qwen2.5-vl" in m or "qwen2.5_vl" in m
 
 
 def collate_fn(batch, processor, model_name="qwen3-vl"):
@@ -34,9 +37,14 @@ def collate_fn(batch, processor, model_name="qwen3-vl"):
         add_generation_prompt=True,
     )
 
-    if _is_7b_model(model_name):
-        # Qwen2.5-VL / TimeLens-7B: interleave timestamp, no image_patch_size
+    if _is_timelens_7b_model(model_name):
+        # TimeLens-7B: interleave timestamp with textual frame timestamps
         images, videos = process_vision_info(messages, return_video_metadata=True)
+        if videos is None or len(videos) == 0:
+            raise ValueError(
+                "Empty videos for TimeLens-7B strict path. "
+                "Please ensure TimeLens-7B processor/config and qwen_vl_utils are aligned."
+            )
         inputs = processor(
             text=texts,
             images=images,
@@ -45,6 +53,22 @@ def collate_fn(batch, processor, model_name="qwen3-vl"):
             padding_side="left",
             return_tensors="pt",
             do_resize=False,
+        )
+    elif _is_qwen2_model(model_name):
+        # Qwen2.5-VL base model path should follow Qwen2 processing path.
+        images, videos, video_kwargs = process_vision_info(
+            messages,
+            return_video_kwargs=True,
+        )
+        inputs = processor(
+            text=texts,
+            images=images,
+            videos=videos,
+            padding=True,
+            padding_side="left",
+            return_tensors="pt",
+            do_resize=False,
+            **video_kwargs,
         )
     else:
         # Qwen3-VL / TimeLens-8B
@@ -78,10 +102,22 @@ class GroundingDatasetInference(Dataset):
         super().__init__()
         self.annos = annos
         self.args = args
-        model_path = getattr(args, "model_path", "") or ""
-        self._is_7b = _is_7b_model(model_path)
-        self._prompt = GROUNDING_PROMPT_TEXT_TIMESTAMP if self._is_7b else GROUNDING_PROMPT
-        self._pixel_scale = 28 * 28 if self._is_7b else 32 * 32
+        model_path = (
+            getattr(args, "format_model_path", None)
+            or getattr(args, "processor_path", None)
+            or getattr(args, "model_path", "")
+            or ""
+        )
+        self._is_timelens_7b = _is_timelens_7b_model(model_path)
+        self._is_qwen2 = _is_qwen2_model(model_path)
+        self._prompt = (
+            GROUNDING_PROMPT_TEXT_TIMESTAMP
+            if self._is_timelens_7b
+            else GROUNDING_PROMPT
+        )
+        self._pixel_scale = (
+            28 * 28 if (self._is_timelens_7b or self._is_qwen2) else 32 * 32
+        )
 
     def __len__(self):
         return len(self.annos)
@@ -101,7 +137,10 @@ class GroundingDatasetInference(Dataset):
             "role": "user",
             "content": [
                 video_cfg,
-                {"type": "text", "text": self._prompt.format(parse_query(anno["query"]))},
+                {
+                    "type": "text",
+                    "text": self._prompt.format(parse_query(anno["query"])),
+                },
             ],
         }
         return {"messages": [message], "anno": anno}

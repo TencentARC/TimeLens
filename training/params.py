@@ -9,6 +9,7 @@ from trl import GRPOConfig as GRPOConfigTRL
 class ModelArguments:
     model_id: Optional[str] = field(default="qwen3-vl-8b")
     model_name_or_path: Optional[str] = field(default=None)
+    processor_path: Optional[str] = field(default=None)
     conv_type: Optional[str] = field(default="chatml")
 
 

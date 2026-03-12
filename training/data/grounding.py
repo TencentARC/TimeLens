@@ -57,16 +57,59 @@ def _format_response(spans):
     )
 
 
-def _is_7b_model(model_path: str) -> bool:
+def _extract_timelens_7b_sampled_timestamps(videos):
+    if videos is None or len(videos) == 0:
+        raise ValueError("Expected non-empty videos for TimeLens-7B strict path.")
+    if not isinstance(videos[0], (list, tuple)) or len(videos[0]) != 2:
+        raise ValueError(
+            "TimeLens-7B strict path expects videos to contain (video_tensor, metadata) tuples."
+        )
+
+    metadata = videos[0][1]
+    fps = float(metadata["fps"])
+    frame_indices = metadata["frames_indices"]
+    if hasattr(frame_indices, "tolist"):
+        frame_indices = frame_indices.tolist()
+    return [float(idx) / fps for idx in frame_indices[::2]]
+
+
+def _align_spans_to_sampled_timestamps(spans, sampled_timestamps):
+    aligned_spans = []
+    for start, end in spans:
+        start_idx = 0
+        for i, cur_ts in enumerate(sampled_timestamps):
+            if cur_ts <= start:
+                start_idx = i
+            else:
+                break
+
+        end_idx = len(sampled_timestamps) - 1
+        for i in range(start_idx, len(sampled_timestamps)):
+            if end <= sampled_timestamps[i]:
+                end_idx = i
+                break
+
+        aligned_spans.append([sampled_timestamps[start_idx], sampled_timestamps[end_idx]])
+    return aligned_spans
+
+
+def _is_timelens_7b_model(model_path: str) -> bool:
+    return bool(model_path) and "timelens-7b" in model_path.lower()
+
+
+def _is_qwen2_model(model_path: str) -> bool:
     if not model_path:
         return False
     m = model_path.lower()
-    return "qwen2.5-vl" in m or "qwen2.5_vl" in m or "timelens-7b" in m
+    return "qwen2" in m or "qwen2.5-vl" in m or "qwen2.5_vl" in m
 
 
 def _build_video_content(anno, data_args, include_video_range=False, model_path=None):
     # Qwen2.5-VL / TimeLens-7B uses 28x28; Qwen3-VL / TimeLens-8B uses 32x32
-    scale = 28 * 28 if _is_7b_model(model_path or "") else 32 * 32
+    is_qwen2_family = _is_qwen2_model(model_path or "") or _is_timelens_7b_model(
+        model_path or ""
+    )
+    scale = 28 * 28 if is_qwen2_family else 32 * 32
     content = {
         "type": "video",
         "video": anno["video_path"],
@@ -125,7 +168,11 @@ class GroundingDataset(Dataset):
         self.data_args = data_args
         self.training_args = training_args
         self.training_mode = training_mode
-        self._is_7b = _is_7b_model(model_args.model_name_or_path or "")
+        self._format_model_path = (
+            model_args.processor_path or model_args.model_name_or_path or ""
+        )
+        self._is_timelens_7b = _is_timelens_7b_model(self._format_model_path)
+        self._is_qwen2 = _is_qwen2_model(self._format_model_path)
 
         if dataset_name in ("gemini_refined_data", "timelens-100k"):
             base_annos = TimeLens100KDataset.load_annos(split="train")
@@ -277,24 +324,45 @@ class GroundingDataset(Dataset):
     def _getitem_sft(self, idx):
         anno = copy.deepcopy(self.annos[idx])
         spans = _normalize_spans(anno["span"])
-        prompt = GROUNDING_PROMPT_TEXT_TIMESTAMP if self._is_7b else GROUNDING_PROMPT
+        prompt = (
+            GROUNDING_PROMPT_TEXT_TIMESTAMP
+            if self._is_timelens_7b
+            else GROUNDING_PROMPT
+        )
 
         messages = [
             {
                 "role": "user",
                 "content": [
                     _build_video_content(
-                        anno, self.data_args, model_path=self.model_args.model_name_or_path
+                        anno, self.data_args, model_path=self._format_model_path
                     ),
                     {"type": "text", "text": prompt.format(anno["query"])},
                 ],
             }
         ]
 
-        if self._is_7b:
-            images, videos = process_vision_info(messages, return_video_metadata=True)
+        if self._is_timelens_7b:
+            images, videos = process_vision_info(
+                messages,
+                return_video_metadata=True,
+            )
+            if videos is None or len(videos) == 0:
+                raise ValueError(
+                    "Empty videos for TimeLens-7B strict path. "
+                    "Please ensure TimeLens-7B processor/config and qwen_vl_utils are aligned."
+                )
             video_metadatas = None
-            video_kwargs = {}
+            spans = _align_spans_to_sampled_timestamps(
+                spans,
+                _extract_timelens_7b_sampled_timestamps(videos),
+            )
+        elif self._is_qwen2:
+            images, videos, video_kwargs = process_vision_info(
+                messages,
+                return_video_kwargs=True,
+            )
+            video_metadatas = None
         else:
             images, videos, video_kwargs = process_vision_info(
                 messages,
@@ -313,13 +381,22 @@ class GroundingDataset(Dataset):
 
         text = self.processor.apply_chat_template(messages, tokenize=False)
         text = [text.strip()]
-        if self._is_7b:
+        if self._is_timelens_7b:
             inputs = self.processor(
                 text=text,
                 images=images,
                 videos=videos,
                 return_tensors="pt",
                 do_resize=False,
+            )
+        elif self._is_qwen2:
+            inputs = self.processor(
+                text=text,
+                images=images,
+                videos=videos,
+                return_tensors="pt",
+                do_resize=False,
+                **video_kwargs,
             )
         else:
             inputs = self.processor(
@@ -342,7 +419,11 @@ class GroundingDataset(Dataset):
 
     def _getitem_grpo(self, idx):
         anno = copy.deepcopy(self.annos[idx])
-        prompt = GROUNDING_PROMPT_TEXT_TIMESTAMP if self._is_7b else GROUNDING_PROMPT
+        prompt = (
+            GROUNDING_PROMPT_TEXT_TIMESTAMP
+            if self._is_timelens_7b
+            else GROUNDING_PROMPT
+        )
 
         messages = [
             {
@@ -352,7 +433,7 @@ class GroundingDataset(Dataset):
                         anno,
                         self.data_args,
                         include_video_range=True,
-                        model_path=self.model_args.model_name_or_path,
+                        model_path=self._format_model_path,
                     ),
                     {"type": "text", "text": prompt.format(anno["query"])},
                 ],
@@ -366,10 +447,27 @@ class GroundingDataset(Dataset):
         )
         text = [text]
 
-        if self._is_7b:
-            images, videos = process_vision_info(messages, return_video_metadata=True)
+        if self._is_timelens_7b:
+            images, videos = process_vision_info(
+                messages,
+                return_video_metadata=True,
+            )
+            if videos is None or len(videos) == 0:
+                raise ValueError(
+                    "Empty videos for TimeLens-7B strict path. "
+                    "Please ensure TimeLens-7B processor/config and qwen_vl_utils are aligned."
+                )
             video_metadatas = None
-            video_kwargs = {}
+            anno["span"] = _align_spans_to_sampled_timestamps(
+                _normalize_spans(anno["span"]),
+                _extract_timelens_7b_sampled_timestamps(videos),
+            )
+        elif self._is_qwen2:
+            images, videos, video_kwargs = process_vision_info(
+                messages,
+                return_video_kwargs=True,
+            )
+            video_metadatas = None
         else:
             images, videos, video_kwargs = process_vision_info(
                 messages,
@@ -383,13 +481,22 @@ class GroundingDataset(Dataset):
             else:
                 video_metadatas = None
 
-        if self._is_7b:
+        if self._is_timelens_7b:
             inputs = self.processor(
                 text=text,
                 images=images,
                 videos=videos,
                 return_tensors="pt",
                 do_resize=False,
+            )
+        elif self._is_qwen2:
+            inputs = self.processor(
+                text=text,
+                images=images,
+                videos=videos,
+                return_tensors="pt",
+                do_resize=False,
+                **video_kwargs,
             )
         else:
             inputs = self.processor(

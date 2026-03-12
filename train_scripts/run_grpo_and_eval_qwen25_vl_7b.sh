@@ -12,6 +12,7 @@ trap cleanup SIGINT SIGTERM
 export PYTHONPATH="./:${PYTHONPATH:-}"
 
 model_path=""
+processor_path="TencentARC/TimeLens-7B"
 raw_anno_path=""
 model_id="qwen2.5-vl-7b"
 
@@ -38,6 +39,7 @@ eval_datasets="charades-timelens,activitynet-timelens,qvhighlights-timelens"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --model_path) model_path="$2"; shift 2 ;;
+    --processor_path) processor_path="$2"; shift 2 ;;
     --raw_anno_path) raw_anno_path="$2"; shift 2 ;;
     --datasets) datasets="$2"; shift 2 ;;
     --min_tokens) min_tokens="$2"; shift 2 ;;
@@ -104,6 +106,7 @@ echo "Seed       : ${seed}"
 
 bash train_scripts/run_grpo_qwen25_vl_7b.sh \
   --model_path "${model_path}" \
+  --processor_path "${processor_path}" \
   --raw_anno_path "${raw_anno_path}" \
   --datasets "${datasets}" \
   --min_tokens "${min_tokens}" \

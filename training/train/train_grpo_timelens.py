@@ -132,7 +132,8 @@ def train():
         )
 
     model_cls = get_model_class(model_args.model_name_or_path)
-    processor_cls = get_processor_class(model_args.model_name_or_path)
+    processor_source = model_args.processor_path or model_args.model_name_or_path
+    processor_cls = get_processor_class(processor_source)
     config_cls = get_config_class(model_args.model_name_or_path)
 
     config = config_cls.from_pretrained(
@@ -199,7 +200,7 @@ def train():
         print_trainable_parameters(model, training_args=training_args)
 
     processor = processor_cls.from_pretrained(
-        model_args.model_name_or_path,
+        processor_source,
         do_resize=False,
         padding_side="left",
         trust_remote_code=True,

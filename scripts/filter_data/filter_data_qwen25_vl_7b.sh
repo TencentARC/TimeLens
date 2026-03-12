@@ -14,6 +14,7 @@ export PYTHONPATH="./:${PYTHONPATH:-}"
 
 dataset="gemini_refined_data"
 model_path="/path/to/Qwen2.5-VL-7B-Instruct"
+processor_path="TencentARC/TimeLens-7B"
 min_tokens=64
 total_tokens=14336
 fps=2
@@ -25,6 +26,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dataset) dataset="$2"; shift 2 ;;
     --model_path) model_path="$2"; shift 2 ;;
+    --processor_path) processor_path="$2"; shift 2 ;;
     --min_tokens) min_tokens="$2"; shift 2 ;;
     --total_tokens) total_tokens="$2"; shift 2 ;;
     --fps) fps="$2"; shift 2 ;;
@@ -56,6 +58,7 @@ for IDX in $(seq 0 $((CHUNKS-1))); do
     --split train \
     --pred_path "${pred_path}" \
     --model_path "${model_path}" \
+    --processor_path "${processor_path}" \
     --chunk "${CHUNKS}" \
     --index "${IDX}" \
     --seed "${seed}" \
@@ -67,6 +70,11 @@ done
 
 wait
 
+shards=( "${pred_path}"_*.jsonl )
+if [[ ! -e "${shards[0]}" ]]; then
+  echo "No shard outputs found under ${pred_path}_*.jsonl. Please check error logs above."
+  exit 1
+fi
 cat "${pred_path}"_*.jsonl > "${pred_path}.jsonl"
 rm -f "${pred_path}"_*.jsonl
 echo "Filtered results saved to: ${pred_path}.jsonl"

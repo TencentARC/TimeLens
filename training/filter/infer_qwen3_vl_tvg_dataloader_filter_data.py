@@ -41,6 +41,11 @@ def parse_args():
     parser.add_argument("--dataset", default="gemini_refined_data")
     parser.add_argument("--pred_path", required=True)
     parser.add_argument("--model_path", required=True)
+    parser.add_argument(
+        "--processor_path",
+        default=None,
+        help="Processor checkpoint path. For Qwen2.5-VL-7B reproduction, set to TimeLens-7B.",
+    )
     parser.add_argument("--split", default="train")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--chunk", type=int, default=1)
@@ -96,7 +101,10 @@ if __name__ == "__main__":
         raise ValueError('Only device="auto" is supported.')
 
     model_cls = get_model_class(args.model_path)
-    processor_cls = get_processor_class(args.model_path)
+    processor_source = args.processor_path or args.model_path
+    processor_cls = get_processor_class(processor_source)
+    args.processor_path = processor_source
+    args.format_model_path = processor_source
     model = model_cls.from_pretrained(
         args.model_path,
         torch_dtype=torch.bfloat16,
@@ -104,7 +112,7 @@ if __name__ == "__main__":
         device_map=args.device,
     ).eval()
     processor = processor_cls.from_pretrained(
-        args.model_path,
+        processor_source,
         padding_side="left",
         do_resize=False,
         trust_remote_code=True,
@@ -122,7 +130,9 @@ if __name__ == "__main__":
         num_workers=10,
         prefetch_factor=2,
         pin_memory=True,
-        collate_fn=partial(collate_fn, processor=processor, model_name=args.model_path),
+        collate_fn=partial(
+            collate_fn, processor=processor, model_name=args.format_model_path
+        ),
     )
 
     dumps = []

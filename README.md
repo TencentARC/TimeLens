@@ -400,24 +400,42 @@ bash scripts/eval_timelens_bench.sh
 
 #### TimeLens-7B training (based on Qwen2.5-VL)
 
-TimeLens-7B is trained from **Qwen2.5-VL-7B-Instruct** with only two stages: **filter data** then **GRPO** (no SFT). Hyperparameters match the TimeLens-7B evaluation setup (min_tokens=64, total_tokens=14336, fps=2, interleave timestamp).
+TimeLens-7B training uses **Qwen2.5-VL-7B-Instruct** as the model weights, while forcing the processor/config path to **TimeLens-7B** to align timestamp interleave behavior. It has only two stages: **filter data** then **GRPO** (no SFT).
 
-1. **Filter data** (use Qwen2.5-VL-7B or TimeLens-7B for same processor config):
+1. **Filter data**:
+
+   We provide precomputed filtering inference output:
+   `https://huggingface.co/datasets/JungleGym/TimeLens-Qwen2.5-VL-7B-filter-data/blob/main/FPS-2-maxframes-448_TOTALtokens-14336_MINtokens-64---20260301_013151/gemini_refined_data.jsonl`
+   You can download it directly:
+
+```bash
+hf download JungleGym/TimeLens-Qwen2.5-VL-7B-filter-data \
+  FPS-2-maxframes-448_TOTALtokens-14336_MINtokens-64---20260301_013151/gemini_refined_data.jsonl \
+  --repo-type dataset \
+  --local-dir output/TimeLens-7B/filter-data/prebuilt
+```
+
+   You can also generate it by yourself:
 
 ```bash
 bash scripts/filter_data/filter_data_qwen25_vl_7b.sh \
-  --model_path "/path/to/Qwen2.5-VL-7B-Instruct"
+  --model_path "/path/to/Qwen2.5-VL-7B-Instruct" \
+  --processor_path "TencentARC/TimeLens-7B"
 ```
 
 Output: `output/TimeLens-7B/filter-data/.../gemini_refined_data.jsonl`
 
-2. **GRPO training** from base model (filtering json as input):
+2. **GRPO training** from base model (filtering jsonl as input):
+
+   If you use the prebuilt file downloaded above, use:
+   `--raw_anno_path output/TimeLens-7B/filter-data/prebuilt/FPS-2-maxframes-448_TOTALtokens-14336_MINtokens-64---20260301_013151/gemini_refined_data.jsonl`
 
    Training + evaluation:
 
 ```bash
 bash train_scripts/run_grpo_and_eval_qwen25_vl_7b.sh \
   --model_path "/path/to/Qwen2.5-VL-7B-Instruct" \
+  --processor_path "TencentARC/TimeLens-7B" \
   --raw_anno_path "output/TimeLens-7B/filter-data/<your_filter_run_dir>/gemini_refined_data.jsonl"
 ```
 
@@ -426,9 +444,9 @@ Training only:
 ```bash
 bash train_scripts/run_grpo_qwen25_vl_7b.sh \
   --model_path "/path/to/Qwen2.5-VL-7B-Instruct" \
+  --processor_path "TencentARC/TimeLens-7B" \
   --raw_anno_path "output/TimeLens-7B/filter-data/<your_filter_run_dir>/gemini_refined_data.jsonl"
 ```
-
 
 
 Final GRPO checkpoints are saved under:
