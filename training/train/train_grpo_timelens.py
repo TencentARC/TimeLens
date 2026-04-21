@@ -199,9 +199,11 @@ def train():
     if training_args.local_rank in (0, -1):
         print_trainable_parameters(model, training_args=training_args)
 
+    # `qwen_vl_utils` already resizes frames in the data pipeline, so keep
+    # `do_resize=False` at the processor call sites instead of persisting it
+    # into the saved processor defaults.
     processor = processor_cls.from_pretrained(
         processor_source,
-        do_resize=False,
         padding_side="left",
         trust_remote_code=True,
     )
