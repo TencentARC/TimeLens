@@ -11,6 +11,7 @@
 </p>
 
 ## 📰 News
+- **2026.10.26**: 🏆 [**AGIBOT WITA-Omni 1.0**](https://www.agibot.com/) achieves an average score of **66.4** on [**TimeLens-Bench**](https://timelens-arc-lab.github.io/#leaderboard).
 - **2026.07.21**: 🚀 We introduce [**TimeLens2**](https://github.com/MCG-NJU/TimeLens2), a next-generation model family and training corpus for generalist video temporal grounding.
 - **2026.02.26**: 🚀 Training for **TimeLens-7B** based on **Qwen2.5-VL-7B** is available on the [**train**](https://github.com/TencentARC/TimeLens/tree/train) branch.
 - **2026.02.26**: 🚀 We now support training **TimeLens-8B** based on **Qwen3-8B-VL**.
