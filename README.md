@@ -11,7 +11,7 @@
 </p>
 
 ## 📰 News
-- **2026.10.28**: 📊 We have updated the [**TimeLens-Bench leaderboard**](https://timelens-arc-lab.github.io/#leaderboard) with results for [**Qwen3.5-Omni-Flash**](https://qwen.ai/) and [**Qwen3.8-Omni-Flash**](https://qwen.ai/), achieving average scores of **52.53** and **55.27**, respectively.
+- **2026.10.28**: 📊 We have updated the [**TimeLens-Bench leaderboard**](https://timelens-arc-lab.github.io/#leaderboard) with results for [**Qwen3.5-Omni-Flash**](https://qwen.ai/blog?id=qwen3.5-omni) and [**Qwen3.8-Omni-Flash**](https://qwen.ai/blog?id=qwen3.8-omni-flash).
 - **2026.10.26**: 🏆 [**AGIBOT WITA-Omni 1.0**](https://www.agibot.com/) achieves an average score of **66.4** on [**TimeLens-Bench**](https://timelens-arc-lab.github.io/#leaderboard).
 - **2026.07.21**: 🚀 We introduce [**TimeLens2**](https://github.com/MCG-NJU/TimeLens2), a next-generation model family and training corpus for generalist video temporal grounding.
 - **2026.02.26**: 🚀 Training for **TimeLens-7B** based on **Qwen2.5-VL-7B** is available on the [**train**](https://github.com/TencentARC/TimeLens/tree/train) branch.
